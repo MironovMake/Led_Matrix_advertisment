@@ -1,15 +1,19 @@
 #include <Arduino.h>
+// inculde GPS library and setup one
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
-#define S_RX 3 // Вывод RX
-#define S_TX 4 // Вывод TX
+#define S_RX 3 // arduino RX
+#define S_TX 4 // arduino TX
 SoftwareSerial SoftSerial(S_RX, S_TX);
 TinyGPSPlus gps;
-int start_positon;
+// depending from this variable will be shown time or temperature
 bool clockFlag = 0;
+
+// variable for first time synchronization with GPS
 bool timeGPSclock = 0;
-bool sing;
+// here two type of time: time from GPS and current time
+// every nigth current time synchronize with GPS time
 struct MyTime
 {
   int hour;
@@ -21,11 +25,15 @@ struct MyTime
 };
 struct MyTime GPSclock;
 struct MyTime clock;
+// include and setup another modules
 #include "led.h"
 #include "rtc.h"
 #include "GPS.h"
 #include "temp.h"
+
+// synchronization happening becouse arduino does reset
 int reset = 12;
+
 void setup(void)
 {
   pinMode(reset, OUTPUT);
@@ -40,22 +48,18 @@ void setup(void)
 //------------------------------------------------------------------
 void loop(void)
 {
+  // sinhronization first time
   if (!timeGPSclock)
   {
     GPSTimeUpdate();
   }
   else
   {
+    // get time from rtc1307
     DateTime now = rtc.now();
-
+    // display time
     if (!(now.second() % 5) && !clockFlag && prev_sec != now.second())
     {
-      Serial.print("current time  ");
-      Serial.print(now.hour());
-      Serial.print(":");
-      Serial.print(now.minute());
-      Serial.print(":");
-      Serial.println(now.second());
       prev_sec = now.second();
       clockFlag = true;
       prev_sec = now.second();
@@ -79,14 +83,9 @@ void loop(void)
       digitPrint(14, 0, m1);
       digitPrint(20, 0, m2);
     }
+    // display temperature
     else if (!(now.second() % 5) && clockFlag && prev_sec != now.second())
     {
-      Serial.print("current time  ");
-      Serial.print(now.hour());
-      Serial.print(":");
-      Serial.print(now.minute());
-      Serial.print(":");
-      Serial.println(now.second());
       prev_sec = now.second();
       clockFlag = false;
       dmd.clearScreen(true);
@@ -101,15 +100,12 @@ void loop(void)
         dmd.drawLine(0, 5, 2, 5, GRAPHICS_NORMAL);
       else if (temp < 0 && h1 == 0)
         dmd.drawLine(5, 5, 7, 5, GRAPHICS_NORMAL);
-      sensors.requestTemperatures(); // Send the command to get temperature readings
+      sensors.requestTemperatures(); //  get temperature readings
       temp = sensors.getTempCByIndex(0) - 4;
-
-      // You can have more than one DS18B20 on the same bus.
-      // 0 refers to the first IC on the wire
     }
+    // synhronization
     if (now.hour() == 2 && now.minute() == 0 && now.second() == 0)
     {
-      Serial.println("gonna off");
       delay(1000);
       digitalWrite(reset, HIGH);
       delay(1000);
